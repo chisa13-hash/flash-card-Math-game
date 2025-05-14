@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flash CAD Math Game</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f8ff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        .game-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        
+        .problem-display {
+            font-size: 2.5rem;
+            margin: 20px 0;
+            min-height: 60px;
+        }
+        
+        .answer-input {
+            font-size: 1.5rem;
+            padding: 10px;
+            width: 150px;
+            text-align: center;
+            border: 2px solid #3498db;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .feedback {
+            font-size: 1.2rem;
+            min-height: 30px;
+            margin: 10px 0;
+        }
+        
+        .correct {
+            color: #27ae60;
+        }
+        
+        .incorrect {
+            color: #e74c3c;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            font-size: 1.1rem;
+        }
+        
+        .btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .difficulty-selector {
+            margin: 15px 0;
+        }
+        
+        .difficulty-btn {
+            margin: 0 5px;
+            padding: 5px 10px;
+        }
+        
+        .active {
+            background-color: #2c3e50;
+        }
+        
+        .timer {
+            font-size: 1.2rem;
+            margin: 10px 0;
+        }
+        
+        .game-over {
+            font-size: 1.5rem;
+            color: #e74c3c;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        
+        .operations {
+            margin: 15px 0;
+        }
+        
+        .operation-btn {
+            margin: 0 5px;
+            padding: 5px 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Flash CAD Math Game</h1>
+        
+        <div class="difficulty-selector">
+            <button class="btn difficulty-btn" data-level="easy">Easy</button>
+            <button class="btn difficulty-btn" data-level="medium">Medium</button>
+            <button class="btn difficulty-btn active" data-level="hard">Hard</button>
+        </div>
+        
+        <div class="operations">
+            <button class="btn operation-btn active" data-op="+">+</button>
+            <button class="btn operation-btn active" data-op="-">-</button>
+            <button class="btn operation-btn active" data-op="×">×</button>
+            <button class="btn operation-btn active" data-op="÷">÷</button>
+        </div>
+        
+        <div class="stats">
+            <div>Score: <span id="score">0</span></div>
+            <div>Level: <span id="level">1</span></div>
+            <div>Streak: <span id="streak">0</span></div>
+        </div>
+        
+        <div class="timer">Time: <span id="time">60</span>s</div>
+        
+        <div class="problem-display" id="problem"></div>
+        
+        <input type="number" class="answer-input" id="answer" placeholder="Your answer">
+        
+        <div class="feedback" id="feedback"></div>
+        
+        <button class="btn" id="check-btn">Check Answer</button>
+        <button class="btn" id="new-game-btn">New Game</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Game elements
+            const problemDisplay = document.getElementById('problem');
+            const answerInput = document.getElementById('answer');
+            const feedbackDisplay = document.getElementById('feedback');
+            const scoreDisplay = document.getElementById('score');
+            const levelDisplay = document.getElementById('level');
+            const streakDisplay = document.getElementById('streak');
+            const timeDisplay = document.getElementById('time');
+            const checkBtn = document.getElementById('check-btn');
+            const newGameBtn = document.getElementById('new-game-btn');
+            const difficultyBtns = document.querySelectorAll('.difficulty-btn');
+            const operationBtns = document.querySelectorAll('.operation-btn');
+            
+            // Game variables
+            let score = 0;
+            let level = 1;
+            let streak = 0;
+            let timeLeft = 60;
+            let timer;
+            let currentProblem = {};
+            let difficulty = 'hard';
+            let selectedOperations = ['+', '-', '×', '÷'];
+            let gameActive = false;
+            
+            // Initialize game
+            initGame();
+            
+            // Event listeners
+            checkBtn.addEventListener('click', checkAnswer);
+            newGameBtn.addEventListener('click', initGame);
+            answerInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    checkAnswer();
+                }
+            });
+            
+            difficultyBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    difficultyBtns.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    difficulty = this.dataset.level;
+                    if (gameActive) {
+                        generateProblem();
+                    }
+                });
+            });
+            
+            operationBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.classList.toggle('active');
+                    updateSelectedOperations();
+                    if (gameActive) {
+                        generateProblem();
+                    }
+                });
+            });
+            
+            function updateSelectedOperations() {
+                selectedOperations = [];
+                operationBtns.forEach(btn => {
+                    if (btn.classList.contains('active')) {
+                        selectedOperations.push(btn.dataset.op);
+                    }
+                });
+                
+                // Ensure at least one operation is selected
+                if (selectedOperations.length === 0) {
+                    operationBtns[0].classList.add('active');
+                    selectedOperations.push('+');
+                }
+            }
+            
+            function initGame() {
+                // Reset game state
+                score = 0;
+                level = 1;
+                streak = 0;
+                timeLeft = 60;
+                gameActive = true;
+                
+                // Update displays
+                scoreDisplay.textContent = score;
+                levelDisplay.textContent = level;
+                streakDisplay.textContent = streak;
+                timeDisplay.textContent = timeLeft;
+                feedbackDisplay.textContent = '';
+                feedbackDisplay.className = 'feedback';
+                
+                // Clear any existing timer
+                if (timer) {
+                    clearInterval(timer);
+                }
+                
+                // Start new timer
+                timer = setInterval(updateTimer, 1000);
+                
+                // Generate first problem
+                generateProblem();
+                
+                // Focus on answer input
+                answerInput.focus();
+            }
+            
+            function updateTimer() {
+                timeLeft--;
+                timeDisplay.textContent = timeLeft;
+                
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }
+            
+            function endGame() {
+                gameActive = false;
+                clearInterval(timer);
+                problemDisplay.textContent = 'Game Over!';
+                feedbackDisplay.textContent = `Final Score: ${score}`;
+                feedbackDisplay.className = 'feedback game-over';
+                answerInput.value = '';
+                answerInput.disabled = true;
+                checkBtn.disabled = true;
+            }
+            
+            function generateProblem() {
+                if (!gameActive) return;
+                
+                // Determine operation
+                const operation = selectedOperations[Math.floor(Math.random() * selectedOperations.length)];
+                
+                let num1, num2, answer;
+                
+                // Generate numbers based on difficulty and level
+                switch (difficulty) {
+                    case 'easy':
+                        num1 = Math.floor(Math.random() * 10) + 1;
+                        num2 = Math.floor(Math.random() * 10) + 1;
+                        break;
+                    case 'medium':
+                        num1 = Math.floor(Math.random() * 50) + 1;
+                        num2 = Math.floor(Math.random() * 50) + 1;
+                        break;
+                    case 'hard':
+                        num1 = Math.floor(Math.random() * 100) + 1;
+                        num2 = Math.floor(Math.random() * 100) + 1;
+                        break;
+                }
+                
+                // Adjust numbers based on level
+                num1 = Math.floor(num1 * (1 + level * 0.2));
+                num2 = Math.floor(num2 * (1 + level * 0.2));
+                
+                // For division, make sure it divides evenly
+                if (operation === '÷') {
+                    const product = num1 * num2;
+                    num1 = product;
+                }
+                
+                // Calculate answer
+                switch (operation) {
+                    case '+':
+                        answer = num1 + num2;
+                        break;
+                    case '-':
+                        // Ensure positive answer
+                        if (num1 < num2) {
+                            [num1, num2] = [num2, num1];
+                        }
+                        answer = num1 - num2;
+                        break;
+                    case '×':
+                        answer = num1 * num2;
+                        break;
+                    case '÷':
+                        answer = num1 / num2;
+                        break;
+                }
+                
+                // Store current problem
+                currentProblem = {
+                    num1: num1,
+                    num2: num2,
+                    operation: operation,
+                    answer: answer
+                };
+                
+                // Display problem
+                problemDisplay.textContent = `${num1} ${operation} ${num2} = ?`;
+                
+                // Clear input and focus
+                answerInput.value = '';
+                answerInput.focus();
+            }
+            
+            function checkAnswer() {
+                if (!gameActive) return;
+                
+                const userAnswer = parseFloat(answerInput.value);
+                
+                if (isNaN(userAnswer)) {
+                    feedbackDisplay.textContent = 'Please enter a valid number';
+                    feedbackDisplay.className = 'feedback incorrect';
+                    return;
+                }
+                
+                // Round to 2 decimal places for division
+                const correctAnswer = currentProblem.operation === '÷' ? 
+                    Math.round(currentProblem.answer * 100) / 100 : 
+                    currentProblem.answer;
+                
+                if (Math.abs(userAnswer - correctAnswer) < 0.01) {
+                    // Correct answer
+                    score += level * 10;
+                    streak++;
+                    
+                    // Increase level every 5 correct answers in a row
+                    if (streak % 5 === 0) {
+                        level++;
+                        levelDisplay.textContent = level;
+                        feedbackDisplay.textContent = `Correct! Level up! (Level ${level})`;
+                    } else {
+                        feedbackDisplay.textContent = 'Correct!';
+                    }
+                    
+                    feedbackDisplay.className = 'feedback correct';
+                    
+                    // Add time bonus for correct answer
+                    timeLeft += 2;
+                    if (timeLeft > 60) timeLeft = 60;
+                    timeDisplay.textContent = timeLeft;
+                } else {
+                    // Incorrect answer
+                    streak = 0;
+                    feedbackDisplay.textContent = `Incorrect. The correct answer was ${correctAnswer}`;
+                    feedbackDisplay.className = 'feedback incorrect';
+                }
+                
+                // Update displays
+                scoreDisplay.textContent = score;
+                streakDisplay.textContent = streak;
+                
+                // Generate new problem
+                setTimeout(generateProblem, 1500);
+            }
+        });
+    </script>
+</body>
+</html>
